@@ -16,6 +16,8 @@
 #include <mpi.h>
 #include <cmath>
 
+#define ROW 0
+#define COL 1
 /*********************************************************************
  * DO NOT CHANGE THE FUNCTION SIGNATURE OF THE FOLLOWING 3 FUNCTIONS *
  *********************************************************************/
@@ -51,9 +53,9 @@ inline int block_decompose_by_dim(const int n, MPI_Comm comm, int dim)
 // ...
 
 // Get the first column processor ranks
-void get_first_col_ranks(int ranks[], int dim,  MPI_Comm comm);
+void get_first_col_row_ranks(int ranks[], int dim,  MPI_Comm comm, int type);
 
 // Get the element number based on ith row
-int get_col_elem_num(const int row_idx, const int dim, const int total_num);
+int get_cell_elem_num(const int idx, const int dim, const int total_num);
 
 #endif // UTILS_H

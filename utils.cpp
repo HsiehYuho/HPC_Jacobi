@@ -14,24 +14,25 @@
 
 // ...
 
-void get_first_col_ranks(int ranks[], int dim,  MPI_Comm comm){
-    // Store all the coords of first col
-    int col_coords[dim][2]; 
+void get_first_col_row_ranks(int ranks[], int dim,  MPI_Comm comm, int type){
+
+    // Store all the coords of first col | row
+    int coords[dim][2]; 
     for(int i = 0; i < dim; i++){
-        col_coords[i][0] = i;
-        col_coords[i][1] = 0;
+        coords[i][0] = type == COL ? i : 0;
+        coords[i][1] = type == COL ? 0 : i;
     }
 
     // Get all the ranks of first col
     for(int i = 0; i < dim; i++){
-        MPI_Cart_rank(comm, col_coords[i], &ranks[i]);
+        MPI_Cart_rank(comm, coords[i], &ranks[i]);
     }    
 
     return;
 }
 
-int get_col_elem_num(const int row_idx, const int dim, const int total_num){
- 	if(row_idx < (total_num % dim))
+int get_cell_elem_num(const int idx, const int dim, const int total_num){
+ 	if(idx < (total_num % dim))
  		return ceil(total_num*1.0/ dim);
  	else 
     	return floor(total_num*1.0/dim);

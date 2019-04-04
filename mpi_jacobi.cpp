@@ -40,14 +40,14 @@ void distribute_vector(const int n, double* input_vector, double** local_vector,
 
     // calculate the first column's ranks
     int *col_ranks = new int[dim];
-    get_first_col_ranks(col_ranks, dim, comm);
+    get_first_col_row_ranks(col_ranks, dim, comm, COL);
 
     // (0,0) processor as sender sends to all first column processors
     if(myrank == col_ranks[0]){
         // idx of the first send-out element
         int prev_sent_idx = 0; 
         for(int i = 0; i < dim; i++){ 
-            int elem_num = get_col_elem_num(i, dim, n);
+            int elem_num = get_cell_elem_num(i, dim, n);
             double* buf = &input_vector[prev_sent_idx];
             MPI_Send(buf, elem_num, MPI_DOUBLE, col_ranks[i], 222, comm);
 
@@ -61,7 +61,7 @@ void distribute_vector(const int n, double* input_vector, double** local_vector,
         // will receive corresponding number of elements
         if(myrank == col_ranks[i]){
             MPI_Status stat;
-            int elem_num = get_col_elem_num(i, dim, n);
+            int elem_num = get_cell_elem_num(i, dim, n);
             double *buf = new double[elem_num];
             MPI_Recv(buf, elem_num, MPI_DOUBLE, col_ranks[0], 222, comm, &stat);
             *local_vector = buf;
@@ -85,12 +85,12 @@ void gather_vector(const int n, double* local_vector, double* output_vector, MPI
     int dim = dims[0]; // num of rol of cartesian grid
 
     int *col_ranks = new int[dim];
-    get_first_col_ranks(col_ranks, dim, comm);
+    get_first_col_row_ranks(col_ranks, dim, comm, COL);
 
     // Each first-col processor sends elements back
     for(int i = 0; i < dim; i++){
         if(myrank == col_ranks[i]){
-            int elem_num = get_col_elem_num(i, dim, n);
+            int elem_num = get_cell_elem_num(i, dim, n);
             MPI_Send(local_vector, elem_num, MPI_DOUBLE, col_ranks[0], 222, comm);
         }
     }
@@ -101,7 +101,7 @@ void gather_vector(const int n, double* local_vector, double* output_vector, MPI
         for(int i = 0; i < dim; i++){
             MPI_Status stat;
 
-            int elem_num = get_col_elem_num(i, dim, n);
+            int elem_num = get_cell_elem_num(i, dim, n);
             double *buf = &output_vector[last_recv_idx];
             MPI_Recv(buf, elem_num, MPI_DOUBLE, col_ranks[i], 222, comm, &stat);
             last_recv_idx += elem_num;
@@ -112,6 +112,7 @@ void gather_vector(const int n, double* local_vector, double* output_vector, MPI
 void distribute_matrix(const int n, double* input_matrix, double** local_matrix, MPI_Comm comm)
 {
     // TODO
+
 }
 
 
@@ -163,15 +164,15 @@ void mpi_jacobi(const int n, double* A, double* b, double* x, MPI_Comm comm,
     distribute_vector(n, &b[0], &local_b, comm);
     
     /*For test*/
-    // if(local_b){
-    //     int dims[2];
-    //     int periods[2];
-    //     int coords[2];
-    //     MPI_Cart_get(comm, 2, dims, periods, coords);
+    if(local_b){
+        int dims[2];
+        int periods[2];
+        int coords[2];
+        MPI_Cart_get(comm, 2, dims, periods, coords);
 
-    //     int elem_num = get_col_elem_num(coords[0], dims[0], n);
-    //     printf("(%d, %d) elem_num %d \n",coords[0], coords[1], elem_num);
-    // }
+        int elem_num = get_cell_elem_num(coords[0], dims[0], n);
+        printf("(%d, %d) elem_num %d \n",coords[0], coords[1], elem_num);
+    }
 
     // allocate local result space
     double* local_x = new double[block_decompose_by_dim(n, comm, 0)];
