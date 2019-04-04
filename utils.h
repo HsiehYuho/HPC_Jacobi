@@ -14,6 +14,7 @@
 #define UTILS_H
 
 #include <mpi.h>
+#include <cmath>
 
 /*********************************************************************
  * DO NOT CHANGE THE FUNCTION SIGNATURE OF THE FOLLOWING 3 FUNCTIONS *
@@ -49,5 +50,10 @@ inline int block_decompose_by_dim(const int n, MPI_Comm comm, int dim)
 
 // ...
 
+// Get the first column processor ranks
+void get_first_col_ranks(int ranks[], int dim,  MPI_Comm comm);
+
+// Get the element number based on ith row
+int get_col_elem_num(const int row_idx, const int dim, const int total_num);
 
 #endif // UTILS_H
