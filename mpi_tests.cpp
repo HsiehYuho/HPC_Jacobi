@@ -69,6 +69,28 @@ TEST(MpiTest, MatrixVectorMult1)
     {
         EXPECT_NEAR(expected_y[i], y[i], 1e-10) << " element y[" << i << "] is wrong";
     }
+
+    // simple 5 by 5 input matrix tests (additional)
+    double _A[5*5] = 
+        {1.,  2.,  3.,  4.,  5.,
+         6.,  7.,  8.,  9.,  10.,
+         11., 12., 13., 14., 15.,
+         16., 17., 18., 19., 20.,
+         21., 22., 23., 24., 25.};
+
+    double _x[5] = {1., 2., 3., 4., 5.};
+    double _y[5];
+    double expected__y[5] = {55., 130, 205, 280, 355};
+    int _n = 5;
+
+    // testing sequential matrix multiplication
+    mpi_matrix_vector_mult(_n, _A, _x, _y, grid_comm);
+
+    for (int i = 0; i < _n; ++i)
+    {
+        EXPECT_NEAR(expected__y[i], _y[i], 1e-10) << " element y[" << i << "] is wrong";
+    }
+
 }
 
 
