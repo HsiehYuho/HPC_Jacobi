@@ -60,3 +60,22 @@ or
 ```sh
 mpirun -np 4 ./mpi_tests
 ```
+
+
+## Useful commands
+Mac OS cannot run more than 2 processors on one cmd application, so the --oversubscribe tag is needed
+Not sure how about Windows.
+
+Run the tests (I added one more matrix mul test.)
+```sh
+mpirun -np 4 --oversubscribe ./mpi_tests
+```
+
+If you want to run the mpi_jacobi() function @ mpi_jaccobi.cpp, you can try this
+```sh
+mpirun -np 4 --oversubscribe  ./jacobi -n 4
+```
+
+Also, if you want to try mpi_matrix_vector_mult() function @ mpi_jaccobi.cpp, 
+you can change the distributed_jacobi() to distributed_matrix_vector_mult() 
+with some necessary params changed.
