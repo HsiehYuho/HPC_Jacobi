@@ -64,4 +64,14 @@ int get_idx_frow_row_col(int row, int col, int n);
 // Get the accumulated idx from dim
 int get_elem_idx_from_dim_idx(int idx, int dim, int n);
 
+
+/*Test functions*/
+void print_sent_matrix(double* A, int n);
+void print_sent_vector(double* x, int n);
+
+// cmd: mpirun -np 9 --oversubscribe  ./jacobi -n 5
+void test_distribute_matrix(double* local_A, int n, MPI_Comm comm);
+void test_distribute_vector(double* local_b, int n, MPI_Comm comm);
+void test_gather_vector(double* x, int n, MPI_Comm comm);
+
 #endif // UTILS_H
