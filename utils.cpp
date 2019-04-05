@@ -31,9 +31,26 @@ void get_first_col_row_ranks(int ranks[], int dim,  MPI_Comm comm, int type){
     return;
 }
 
-int get_cell_elem_num(const int idx, const int dim, const int total_num){
- 	if(idx < (total_num % dim))
- 		return ceil(total_num*1.0/ dim);
+int get_cell_elem_num(const int idx, const int dim, const int n){
+ 	if(idx < (n % dim))
+ 		return ceil(n*1.0 / dim);
  	else 
-    	return floor(total_num*1.0/dim);
+    	return floor(n*1.0 / dim);
+}
+
+int get_idx_frow_row_col(int row, int col, int n){
+	return row * n + col;
+}
+
+int get_elem_idx_from_dim_idx(int idx, int dim, int n){
+	int num = idx * floor(n / dim);
+	// if n mod dim = 1, 
+	// which means idx = 0 processor has one more data, 
+	// and idx = 1 processor starts from idx * floor(n/dim) + 1
+	// if n mod dim = 3, idx = 3, then return 3 * floor(n/dim) + 3
+
+	if(idx > 0 && (idx - 1) < (n % dim)){
+		num += idx;
+	}
+	return num;
 }

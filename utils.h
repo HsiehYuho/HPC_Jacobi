@@ -56,6 +56,12 @@ inline int block_decompose_by_dim(const int n, MPI_Comm comm, int dim)
 void get_first_col_row_ranks(int ranks[], int dim,  MPI_Comm comm, int type);
 
 // Get the element number based on ith row
-int get_cell_elem_num(const int idx, const int dim, const int total_num);
+int get_cell_elem_num(const int idx, const int dim, const int n);
+
+// Get serialized idx from rol and col
+int get_idx_frow_row_col(int row, int col, int n);
+
+// Get the accumulated idx from dim
+int get_elem_idx_from_dim_idx(int idx, int dim, int n);
 
 #endif // UTILS_H

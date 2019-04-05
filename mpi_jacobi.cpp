@@ -67,6 +67,8 @@ void distribute_vector(const int n, double* input_vector, double** local_vector,
             *local_vector = buf;
         }
     }
+
+    delete[] col_ranks;
 }
 
 
@@ -107,18 +109,90 @@ void gather_vector(const int n, double* local_vector, double* output_vector, MPI
             last_recv_idx += elem_num;
         }        
     }
+    delete[] col_ranks;
 }
 
 void distribute_matrix(const int n, double* input_matrix, double** local_matrix, MPI_Comm comm)
 {
-    // TODO
+    int myrank, rank00;
+    int coords00[2] = {0,0};
+    MPI_Comm_rank(comm, &myrank);
+    MPI_Cart_rank(comm, coords00, &rank00);
 
+    int dims[2];
+    int periods[2];
+    int coords[2];
+    MPI_Cart_get(comm, 2, dims, periods, coords);
+
+    // Send the element from (0,0) to all the cells
+    if(myrank == rank00){
+        for(int row = 0; row < dims[0]; row++){
+            for(int col = 0; col < dims[1]; col++){
+
+                int row_elem_num = get_cell_elem_num(row, dims[0], n);
+                int col_elem_num = get_cell_elem_num(col, dims[1], n);
+                int elem_num = row_elem_num * col_elem_num;
+
+                int row_start = get_elem_idx_from_dim_idx(row, dims[0], n);
+                int row_end = (row_start + row_elem_num);
+                int col_start = get_elem_idx_from_dim_idx(col, dims[1], n);
+                int col_end = (col_start + col_elem_num);
+
+                if(row_end > n || col_end > n){
+                    printf("Element idx across boundary \n");
+                    exit(EXIT_FAILURE);
+                }
+
+                // Serialize the data 
+                double* buf = new double[elem_num];
+                int buf_idx = 0;
+                
+                for(int i = row_start; i < row_end; i++){
+                    for(int j = col_start; j < col_end; j++){
+                        int idx = get_idx_frow_row_col(i, j, n);
+                        buf[buf_idx++] = input_matrix[idx];
+                    }
+                }
+
+                // send out the data to correpsponding destination
+                int dest_coords[2] = {row, col};
+                int dest_rank = 0;
+                MPI_Cart_rank(comm, dest_coords, &dest_rank);
+
+                MPI_Send(buf, elem_num, MPI_DOUBLE, dest_rank, 222, comm);
+            }
+        }        
+    }
+
+    // Each processor expects to receive its own data
+    for(int row = 0; row < dims[0]; row++){
+        for(int col = 0; col < dims[1]; col++){
+            int dest_coords[2] = {row, col};
+            int dest_rank = 0;
+            MPI_Cart_rank(comm, dest_coords, &dest_rank);
+
+            if(myrank == dest_rank){
+                MPI_Status stat;
+
+                int row_elem_num = get_cell_elem_num(row, dims[0], n);
+                int col_elem_num = get_cell_elem_num(col, dims[1], n);
+                int elem_num = row_elem_num * col_elem_num;
+    
+                double *buf = new double[elem_num];
+                MPI_Recv(buf, elem_num, MPI_DOUBLE, rank00, 222, comm, &stat);
+
+                *local_matrix = buf;
+                return;
+            }
+        }
+    }
 }
 
 
 void transpose_bcast_vector(const int n, double* col_vector, double* row_vector, MPI_Comm comm)
 {
     // TODO
+    
 }
 
 
@@ -164,6 +238,38 @@ void mpi_jacobi(const int n, double* A, double* b, double* x, MPI_Comm comm,
     distribute_vector(n, &b[0], &local_b, comm);
     
     /*For test*/
+    int coords00[2] = {0,0};
+    int myrank = 0, rank00 = 0;
+    MPI_Cart_rank(comm, coords00, &rank00);
+    MPI_Comm_rank(comm, &myrank);
+
+    if(myrank == rank00){
+        printf("Print input matrix: \n");
+        for(int i = 0; i < n*n; i++){
+            printf("%.2f, ", A[i]);
+        }   
+        printf("\n");
+    }
+
+    // test distribute_matrix
+    // cmd: mpirun -np 9 --oversubscribe  ./jacobi -n 5
+    if(local_A){
+        int dims[2];
+        int periods[2];
+        int coords[2];
+        MPI_Cart_get(comm, 2, dims, periods, coords);
+
+        int row_elem_num = get_cell_elem_num(coords[0], dims[0], n);
+        int col_elem_num = get_cell_elem_num(coords[1], dims[1], n);
+
+        int elem_num = row_elem_num * col_elem_num;
+        printf("(%d, %d) matrix elem_num %d \n",coords[0], coords[1], elem_num);
+        for(int i = 0; i < elem_num; i++)
+            printf("%.2f, ", local_A[i]);
+        printf("\n");
+    }
+
+    // test distribute_vector
     if(local_b){
         int dims[2];
         int periods[2];
@@ -171,7 +277,7 @@ void mpi_jacobi(const int n, double* A, double* b, double* x, MPI_Comm comm,
         MPI_Cart_get(comm, 2, dims, periods, coords);
 
         int elem_num = get_cell_elem_num(coords[0], dims[0], n);
-        printf("(%d, %d) elem_num %d \n",coords[0], coords[1], elem_num);
+        printf("(%d, %d) vector elem_num %d \n",coords[0], coords[1], elem_num);
     }
 
     // allocate local result space
@@ -181,7 +287,7 @@ void mpi_jacobi(const int n, double* A, double* b, double* x, MPI_Comm comm,
     // gather results back to rank 0
     gather_vector(n, local_x, x, comm);
 
-    /*For test*/
+    // test gather_vector
     // if(x){
     //     int myrank;
     //     MPI_Comm_rank(comm, &myrank);
