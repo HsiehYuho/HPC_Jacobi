@@ -43,6 +43,8 @@ void distribute_vector(const int n, double* input_vector, double** local_vector,
     int *col_ranks = new int[dim];
     get_first_col_row_ranks(col_ranks, dim, comm, COL);
 
+    MPI_Request req;
+
     // (0,0) processor as sender sends to all first column processors
     if(myrank == col_ranks[0]){
         // idx of the first send-out element
@@ -50,7 +52,7 @@ void distribute_vector(const int n, double* input_vector, double** local_vector,
         for(int i = 0; i < dim; i++){ 
             int elem_num = get_cell_elem_num(i, dim, n);
             double* buf = &input_vector[prev_sent_idx];
-            MPI_Send(buf, elem_num, MPI_DOUBLE, col_ranks[i], 222, comm);
+            MPI_Isend(buf, elem_num, MPI_DOUBLE, col_ranks[i], 222, comm, &req);
 
             prev_sent_idx += elem_num;
         }
@@ -90,11 +92,13 @@ void gather_vector(const int n, double* local_vector, double* output_vector, MPI
     int *col_ranks = new int[dim];
     get_first_col_row_ranks(col_ranks, dim, comm, COL);
 
+    MPI_Request req;
+
     // Each first-col processor sends elements back
     for(int i = 0; i < dim; i++){
         if(myrank == col_ranks[i]){
             int elem_num = get_cell_elem_num(i, dim, n);
-            MPI_Send(local_vector, elem_num, MPI_DOUBLE, col_ranks[0], 222, comm);
+            MPI_Isend(local_vector, elem_num, MPI_DOUBLE, col_ranks[0], 222, comm, &req);
         }
     }
 
@@ -124,6 +128,8 @@ void distribute_matrix(const int n, double* input_matrix, double** local_matrix,
     int periods[2];
     int coords[2];
     MPI_Cart_get(comm, 2, dims, periods, coords);
+
+    MPI_Request req;
 
     // Send the element from (0,0) to all the cells
     if(myrank == rank00){
@@ -160,7 +166,7 @@ void distribute_matrix(const int n, double* input_matrix, double** local_matrix,
                 int dest_rank = 0;
                 MPI_Cart_rank(comm, dest_coords, &dest_rank);
 
-                MPI_Send(buf, elem_num, MPI_DOUBLE, dest_rank, 222, comm);
+                MPI_Isend(buf, elem_num, MPI_DOUBLE, dest_rank, 222, comm, &req);
             }
         }        
     }
@@ -199,15 +205,19 @@ void transpose_bcast_vector(const int n, double* col_vector, double* row_vector,
     int periods[2];
     int coords[2];
     MPI_Cart_get(comm, 2, dims, periods, coords);
-    
+
+    MPI_Request req; 
+
     // (x,0) processor has col_vector and send it to (i,i) cell
     if(coords[1] == 0){
+        
+
         int dest_rank = 0;
         int dest_coords[2] = {coords[0],coords[0]};
         MPI_Cart_rank(comm, dest_coords, &dest_rank);
         
         int vec_elem_num = get_cell_elem_num(coords[0], dims[0], n);
-        MPI_Send(col_vector, vec_elem_num, MPI_DOUBLE, dest_rank, 222, comm);
+        MPI_Isend(col_vector, vec_elem_num, MPI_DOUBLE, dest_rank, 222, comm, &req);
     }
 
     // (x,x) processor expects to receive data from (x,0) then broadcast to sub-communicators
