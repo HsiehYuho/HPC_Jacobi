@@ -15,6 +15,7 @@
 
 #include <mpi.h>
 #include <cmath>
+#include <stdexcept>
 
 #define ROW 0
 #define COL 1
@@ -55,6 +56,9 @@ inline int block_decompose_by_dim(const int n, MPI_Comm comm, int dim)
 // Get the first column processor ranks
 void get_first_col_row_ranks(int ranks[], int dim,  MPI_Comm comm, int type);
 
+// Get the diagonal processor ranks
+void get_diag_ranks(int ranks[], int dim, MPI_Comm comm);
+
 // Get the element number based on ith row
 int get_cell_elem_num(const int idx, const int dim, const int n);
 
@@ -73,5 +77,9 @@ void print_sent_vector(double* x, int n);
 void test_distribute_matrix(double* local_A, int n, MPI_Comm comm);
 void test_distribute_vector(double* local_b, int n, MPI_Comm comm);
 void test_gather_vector(double* x, int n, MPI_Comm comm);
+
+// Helper functions for sequential calculations
+void matrix_subtract(double* arr1, double* arr2, double* arr3, int n);
+double l2_norm(double* arr1, int n);
 
 #endif // UTILS_H

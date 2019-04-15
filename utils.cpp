@@ -31,6 +31,21 @@ void get_first_col_row_ranks(int ranks[], int dim,  MPI_Comm comm, int type){
     return;
 }
 
+void get_diag_ranks(int ranks[], int dim, MPI_Comm comm) {
+
+	// Store all the coordinates of the diagonal elements (ii,ii)
+	int coords[dim][2]; // dim: number of rows of processors in the grid
+	for (int ii = 0; ii < dim; ii++) {
+		coords[ii][0] = coords[ii][1] = ii;
+	}
+
+	// Get all the ranks of the diagonal elements
+	for (int ii = 0; ii < dim; ii++) {
+		MPI_Cart_rank(comm, coords[ii], &ranks[ii]);
+	}
+
+}
+
 int get_cell_elem_num(const int idx, const int dim, const int n){
  	if(idx < (n % dim))
  		return ceil(n*1.0 / dim);
@@ -107,6 +122,7 @@ void test_distribute_vector(double* local_b, int n, MPI_Comm comm){
         printf("(%d, %d) vector elem_num %d \n",coords[0], coords[1], elem_num);
     }
 }
+
 void test_gather_vector(double* x, int n, MPI_Comm comm){
     if(x){
         int myrank;
@@ -118,4 +134,21 @@ void test_gather_vector(double* x, int n, MPI_Comm comm){
             printf("\n");            
         }
     }
+}
+
+// Subtracts two arrays of size n: arr1 - arr2 = arr3
+void matrix_subtract(double* arr1, double* arr2, double* arr3, int n) {
+	for (int ii = 0; ii < n; ii++) {
+		arr3[ii] = arr1[ii] - arr2[ii];
+	}
+}
+
+// Calculates the l2 norm of arr1, an array of size n
+double l2_norm(double* arr1, int n) {
+	double l2 = 0.;
+	for (int ii = 0; ii < n; ii++) {
+		l2 += pow(arr1[ii],2);
+	}
+	l2 = sqrt(l2);
+	return l2;
 }

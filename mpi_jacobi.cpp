@@ -12,15 +12,16 @@
 #include "jacobi.h"
 #include "utils.h"
 
+#include <cstring>
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
 #include <vector>
+#include <iostream>
 
 /*
  * TODO: Implement your solutions here
  */
-
 
 void distribute_vector(const int n, double* input_vector, double** local_vector, MPI_Comm comm)
 {
@@ -305,7 +306,52 @@ void distributed_matrix_vector_mult(const int n, double* local_A, double* local_
 void distributed_jacobi(const int n, double* local_A, double* local_b, double* local_x,
                 MPI_Comm comm, int max_iter, double l2_termination)
 {
-    // TODO
+    int myrank;
+    MPI_Comm_rank(comm, &myrank);
+    int dims[2];
+	int periods[2];
+	int mycoords[2];
+	MPI_Cart_get(comm, 2, dims, periods, mycoords);
+
+	int local_n = get_cell_elem_num(mycoords[0], dims[0], n);
+	int local_m = get_cell_elem_num(mycoords[1], dims[1], n);
+
+	// Find D and R, send D to first col
+	double local_D[local_n], local_R[local_n*local_n];
+	int col_ranks[local_n];
+	get_first_col_row_ranks(col_ranks, dims[0], comm, COL);
+	if (mycoords[0] == mycoords[1]) {
+		// global diags are stored in diag procs
+		// diag procs are always square matrices (n x n)
+		// global diags are stored in diag of diag procs
+		for (int row = 0; row < local_n; row++) {
+			for (int col = 0; col < local_n; col++) {
+				if (row == col) {
+					local_D[row] = local_A[row*local_n+col];
+				} else {
+					local_R[row*local_n+col] = local_A[row*local_n+col];
+				}
+			}
+		}
+		// Send D to first column proc with the same row number
+		if (myrank != 0) { // Do not send if = proc0 because it already has what it needs
+			MPI_Send(local_D, local_n, MPI_DOUBLE, col_ranks[mycoords[0]], 123, comm);
+			local_D = NULL;
+		}
+	}
+
+	// Receive D if proc is in the first column
+	int diag_ranks[local_n];
+	get_diag_ranks(diag_ranks, dims[0], comm);
+	for (int ii = 1; ii < dims[0]; ii++) { // skip proc 0
+		if(myrank == col_ranks[ii]){
+			MPI_Status stat;
+			MPI_Recv(D, local_n, MPI_DOUBLE, diag_ranks[ii], 123, comm, &stat);
+		}
+	}
+
+
+
 }
 
 // wraps the distributed matrix vector multiplication
