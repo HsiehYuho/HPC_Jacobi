@@ -39,7 +39,8 @@ void matrix_vector_mult(const int n, const int m, const double* A, const double*
 // implements the sequential jacobi method
 void jacobi(const int n, double* A, double* b, double* x, int max_iter, double l2_termination)
 {
-    double D[n], R[n*n] = {}; // D_inv is diag elements of the inverse of D, a diagonal matrix
+    double D[n] = {};
+    double R[n*n] = {}; // D_inv is diag elements of the inverse of D, a diagonal matrix
     for (int row = 0; row < n; row++) {
     	for (int col = 0; col < n; col++) {
     		if (row == col) {
@@ -56,8 +57,10 @@ void jacobi(const int n, double* A, double* b, double* x, int max_iter, double l
     // Ax-b = -b, negative cancels when norming
     double l2 = l2_norm(b, n);
 	int iter = 0;
-	double Rx[n], bMinusRx[n] = {};
-	double Ax[n], AxMinusb[n] = {};
+	double Rx[n] = {};
+	double bMinusRx[n] = {};
+	double Ax[n] = {};
+	double AxMinusb[n] = {};
     while (iter++ < max_iter && l2 > l2_termination) {
     	// Update x <- D^-1 * (b-Rx)
     	matrix_vector_mult(n, R, x, Rx);

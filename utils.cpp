@@ -68,7 +68,7 @@ int get_elem_idx_from_dim_idx(int idx, int dim, int n){
     // idx = 1, should return 2 (has element idx, 2, 3)
     // idx = 2, should return 4 (has element idx, 4)
 
-    int retidx = idx * floor(n/dim);
+    int retidx = idx * floor(n*1.0/dim);
     retidx += (idx < (n % dim) ? idx : (n % dim));
 	return retidx;
 }
