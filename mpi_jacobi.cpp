@@ -151,10 +151,10 @@ void distribute_matrix(const int n, double* input_matrix, double** local_matrix,
                     exit(EXIT_FAILURE);
                 }
 
-                // Serialize the data 
+                // Serialize the data
                 double* buf = new double[elem_num];
                 int buf_idx = 0;
-                
+
                 for(int i = row_start; i < row_end; i++){
                     for(int j = col_start; j < col_end; j++){
                         int idx = get_idx_frow_row_col(i, j, n);
@@ -169,7 +169,7 @@ void distribute_matrix(const int n, double* input_matrix, double** local_matrix,
 
                 MPI_Isend(buf, elem_num, MPI_DOUBLE, dest_rank, 222, comm, &req);
             }
-        }        
+        }
     }
 
     // Each processor expects to receive its own data
@@ -185,7 +185,7 @@ void distribute_matrix(const int n, double* input_matrix, double** local_matrix,
                 int row_elem_num = get_cell_elem_num(row, dims[0], n);
                 int col_elem_num = get_cell_elem_num(col, dims[1], n);
                 int elem_num = row_elem_num * col_elem_num;
-    
+
                 double *buf = new double[elem_num];
                 MPI_Recv(buf, elem_num, MPI_DOUBLE, rank00, 222, comm, &stat);
 
@@ -347,21 +347,64 @@ void distributed_jacobi(const int n, double* local_A, double* local_b, double* l
 		// Send D to first column proc with the same row number
 		if (myrank != 0) { // Do not send if = proc0 because it already has what it needs
 			MPI_Send(local_D, local_n, MPI_DOUBLE, col_ranks[mycoords[0]], 123, comm);
-			local_D = NULL;
+		}
+	} else { // non-diag procs elements all belong to R
+		for (int ii = 0; ii < local_n * local_m; ii++) {
+			local_R[ii] = local_A[ii];
 		}
 	}
 
 	// Receive D if proc is in the first column
 	int diag_ranks[local_n];
 	get_diag_ranks(diag_ranks, dims[0], comm);
-	for (int ii = 1; ii < dims[0]; ii++) { // skip proc 0
-		if(myrank == col_ranks[ii]){
-			MPI_Status stat;
-			MPI_Recv(D, local_n, MPI_DOUBLE, diag_ranks[ii], 123, comm, &stat);
-		}
+	if(mycoords[1] == 0 && mycoords[0] != 0) { // skip proc 0
+		MPI_Status stat;
+		MPI_Recv(local_D, local_n, MPI_DOUBLE, diag_ranks[mycoords[0]], 123, comm, &stat);
 	}
 
+	// Create a subcom for each column (for last step in loop later)
+	int remains_dim[2] = {1,0};
+	MPI_Comm col_comm;
+	MPI_Cart_sub(comm, remains_dim, &col_comm);
+	int root_rank = 0;
+	int root_coords[1] = {0};
+	MPI_Cart_rank(col_comm, root_coords, &root_rank);
 
+	for (int iter = 0; iter < max_iter; iter++) {
+		// Calculate Rx, store in first column
+		double* local_Rx = new double[block_decompose_by_dim(n, comm, 0)];
+		distributed_matrix_vector_mult(n, local_R, local_x, local_Rx, comm);
+
+		// Update x <- 1/D*(b-Rx) using local vectors stored in the first column
+		if (mycoords[1] == 0) {
+			for (int ii = 0; ii < local_n; ii++) {
+				local_x[ii] = (local_b[ii] - local_Rx[ii]) / local_D[ii];
+			}
+		}
+
+		// Calculate Ax, store in first column
+		double* local_Ax = new double[block_decompose_by_dim(n, comm, 0)];
+		distributed_matrix_vector_mult(n, local_A, local_x, local_Ax, comm);
+
+		// Calculate square of l2 norm of all elements of local Ax-b stored in first column
+		double global_l2;
+		if (mycoords[1] == 0) {
+//			double* local_AxMinusb = new double[block_decompose_by_dim(n, comm, 0)];
+			double local_l2 = 0.;
+			for (int ii = 0; ii < local_n; ii++) {
+				local_l2 += pow(local_Ax[ii] - local_b[ii],2);
+			}
+
+			// Collect (sum) all local_l2 in the first column to p0
+			MPI_Reduce(&local_l2, &global_l2, 1, MPI_DOUBLE, MPI_SUM, root_rank, col_comm);
+		}
+
+		// p0 broadcasts the calculated global_l2 to all procs in the grid
+		MPI_Bcast(&global_l2, 1, MPI_DOUBLE, root_rank, comm);
+		if (sqrt(global_l2) < l2_termination) {
+			return;
+		}
+	}
 
 }
 

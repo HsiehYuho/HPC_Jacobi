@@ -64,11 +64,15 @@ void jacobi(const int n, double* A, double* b, double* x, int max_iter, double l
     	matrix_subtract(b, Rx, bMinusRx, n);
     	for (int ii = 0; ii < n; ii++) {
     		x[ii] = bMinusRx[ii]/D[ii];
+    		std::cout << Rx[ii] << " ";
     	}
+
+    	std::cout << std::endl;
 
     	// Recalculate Ax-b
     	matrix_vector_mult(n, A, x, Ax);
     	matrix_subtract(Ax, b, AxMinusb, n);
     	l2 = l2_norm(AxMinusb, n);
+    	std::cout << l2 << std::endl;
     }
 }
