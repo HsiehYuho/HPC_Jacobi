@@ -91,6 +91,25 @@ TEST(MpiTest, MatrixVectorMult1)
         EXPECT_NEAR(expected__y[i], _y[i], 1e-10) << " element y[" << i << "] is wrong";
     }
 
+    double __A[4*4] = 
+        {10.,  -1., 2.,  0.,
+         -1.,  11., -1.,  3.,
+         2.,   -1., 10.,  -1.,
+         0.,    3., -1.,  0.};
+
+    double __x[4] = {1., 2., 3., 4.};
+    double __y[4];
+    double expected___y[4] = {14., 30, 26, 3};
+    int __n = 4;
+
+
+    mpi_matrix_vector_mult(__n, __A, __x, __y, grid_comm);
+
+    for (int i = 0; i < __n; ++i)
+    {
+        EXPECT_NEAR(expected___y[i], __y[i], 1e-10) << " element y[" << i << "] is wrong";
+    }
+
 }
 
 

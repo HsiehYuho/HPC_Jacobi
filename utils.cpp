@@ -58,16 +58,19 @@ int get_idx_frow_row_col(int row, int col, int n){
 }
 
 int get_elem_idx_from_dim_idx(int idx, int dim, int n){
-	int num = idx * floor(n / dim);
-	// if n mod dim = 1, 
-	// which means idx = 0 processor has one more data, 
-	// and idx = 1 processor starts from idx * floor(n/dim) + 1
-	// if n mod dim = 3, idx = 3, then return 3 * floor(n/dim) + 3
+    // n = 4, dim = 3, 
+    // idx = 0, should return 0 (has element idx 0, 1)
+    // idx = 1, should return 2 (has element idx, 2)
+    // idx = 2, should return 3 (has element idx, 3)
 
-	if(idx > 0 && (idx - 1) < (n % dim)){
-		num += idx;
-	}
-	return num;
+    // n = 5, dim = 3, 
+    // idx = 0, should return 0 (has element idx 0, 1)
+    // idx = 1, should return 2 (has element idx, 2, 3)
+    // idx = 2, should return 4 (has element idx, 4)
+
+    int retidx = idx * floor(n/dim);
+    retidx += (idx < (n % dim) ? idx : (n % dim));
+	return retidx;
 }
 
 
