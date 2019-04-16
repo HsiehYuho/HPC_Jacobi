@@ -49,8 +49,8 @@ void distribute_vector(const int n, double* input_vector, double** local_vector,
     // (0,0) processor as sender sends to all first column processors
     if(myrank == col_ranks[0]){
         // idx of the first send-out element
-        int prev_sent_idx = 0; 
-        for(int i = 0; i < dim; i++){ 
+        int prev_sent_idx = 0;
+        for(int i = 0; i < dim; i++){
             int elem_num = get_cell_elem_num(i, dim, n);
             double* buf = &input_vector[prev_sent_idx];
             MPI_Isend(buf, elem_num, MPI_DOUBLE, col_ranks[i], 222, comm, &req);
@@ -61,7 +61,7 @@ void distribute_vector(const int n, double* input_vector, double** local_vector,
 
     // First column of processor will receive portion of input_vector
     for(int i = 0; i < dim; i++){
-        // current processor is one of (x,0) 
+        // current processor is one of (x,0)
         // will receive corresponding number of elements
         if(myrank == col_ranks[i]){
             MPI_Status stat;
@@ -78,7 +78,7 @@ void distribute_vector(const int n, double* input_vector, double** local_vector,
 
 // gather the local vector distributed among (i,0) to the processor (0,0)
 void gather_vector(const int n, double* local_vector, double* output_vector, MPI_Comm comm)
-{ 
+{
     int myrank;
 
     MPI_Comm_rank(comm, &myrank);
@@ -105,7 +105,7 @@ void gather_vector(const int n, double* local_vector, double* output_vector, MPI
 
     // Processor (0,0) collects all the elements to output_vector
     if(myrank == col_ranks[0]){
-        int last_recv_idx = 0; 
+        int last_recv_idx = 0;
         for(int i = 0; i < dim; i++){
             MPI_Status stat;
 
@@ -113,7 +113,7 @@ void gather_vector(const int n, double* local_vector, double* output_vector, MPI
             double *buf = &output_vector[last_recv_idx];
             MPI_Recv(buf, elem_num, MPI_DOUBLE, col_ranks[i], 222, comm, &stat);
             last_recv_idx += elem_num;
-        }        
+        }
     }
     delete[] col_ranks;
 }
@@ -207,16 +207,16 @@ void transpose_bcast_vector(const int n, double* col_vector, double* row_vector,
     int coords[2];
     MPI_Cart_get(comm, 2, dims, periods, coords);
 
-    MPI_Request req; 
+    MPI_Request req;
 
     // (x,0) processor has col_vector and send it to (i,i) cell
     if(coords[1] == 0){
-        
+
 
         int dest_rank = 0;
         int dest_coords[2] = {coords[0],coords[0]};
         MPI_Cart_rank(comm, dest_coords, &dest_rank);
-        
+
         int vec_elem_num = get_cell_elem_num(coords[0], dims[0], n);
         MPI_Isend(col_vector, vec_elem_num, MPI_DOUBLE, dest_rank, 222, comm, &req);
     }
@@ -225,7 +225,7 @@ void transpose_bcast_vector(const int n, double* col_vector, double* row_vector,
     int vec_elem_num = get_cell_elem_num(coords[0], dims[0], n);
 
     if(coords[0] == coords[1]){
-        MPI_Status stat; 
+        MPI_Status stat;
 
         int source_rank = 0;
         int source_coords[2] = {coords[0],0};
@@ -238,7 +238,7 @@ void transpose_bcast_vector(const int n, double* col_vector, double* row_vector,
 
     // Set the keep each row but drop column
     // Ref: https://www3.nd.edu/~zxu2/acms60212-40212-S12/Lec-08-1.pdf
-    int remains_dim[2] = {1,0}; 
+    int remains_dim[2] = {1,0};
 
     // Create sub communicators
     MPI_Comm col_comm;
@@ -291,7 +291,7 @@ void distributed_matrix_vector_mult(const int n, double* local_A, double* local_
     }
 
     // Set the keep each column but drop row
-    int remains_dim[2] = {0,1}; 
+    int remains_dim[2] = {0,1};
 
     // Create row sub-commiunicators
     MPI_Comm row_comm;
@@ -305,7 +305,7 @@ void distributed_matrix_vector_mult(const int n, double* local_A, double* local_
 
     memset(local_y, 0, row_elem_num * sizeof(*local_y));
 
-    // MPI_Reduce to collect (sum) every local_y to first column of cells 
+    // MPI_Reduce to collect (sum) every local_y to first column of cells
     MPI_Reduce(buf, local_y, row_elem_num, MPI_DOUBLE, MPI_SUM, root_rank, row_comm);
 
     delete[] buf;
@@ -328,7 +328,7 @@ void distributed_jacobi(const int n, double* local_A, double* local_b, double* l
 	int local_m = get_cell_elem_num(mycoords[1], dims[1], n);
 
 	// Find D and R, send D to first col
-	double local_D[local_n], local_R[local_n*local_n];
+	double local_D[local_n], local_R[local_n*local_n] = {};
 	int col_ranks[local_n];
 	get_first_col_row_ranks(col_ranks, dims[0], comm, COL);
 	if (mycoords[0] == mycoords[1]) {
@@ -362,14 +362,6 @@ void distributed_jacobi(const int n, double* local_A, double* local_b, double* l
 		MPI_Recv(local_D, local_n, MPI_DOUBLE, diag_ranks[mycoords[0]], 123, comm, &stat);
 	}
 
-	// Create a subcom for each column (for last step in loop later)
-	int remains_dim[2] = {1,0};
-	MPI_Comm col_comm;
-	MPI_Cart_sub(comm, remains_dim, &col_comm);
-	int root_rank = 0;
-	int root_coords[1] = {0};
-	MPI_Cart_rank(col_comm, root_coords, &root_rank);
-
 	for (int iter = 0; iter < max_iter; iter++) {
 		// Calculate Rx, store in first column
 		double* local_Rx = new double[block_decompose_by_dim(n, comm, 0)];
@@ -388,24 +380,21 @@ void distributed_jacobi(const int n, double* local_A, double* local_b, double* l
 
 		// Calculate square of l2 norm of all elements of local Ax-b stored in first column
 		double global_l2;
+		double local_l2 = 0.;
 		if (mycoords[1] == 0) {
-//			double* local_AxMinusb = new double[block_decompose_by_dim(n, comm, 0)];
-			double local_l2 = 0.;
 			for (int ii = 0; ii < local_n; ii++) {
 				local_l2 += pow(local_Ax[ii] - local_b[ii],2);
 			}
-
-			// Collect (sum) all local_l2 in the first column to p0
-			MPI_Reduce(&local_l2, &global_l2, 1, MPI_DOUBLE, MPI_SUM, root_rank, col_comm);
 		}
 
-		// p0 broadcasts the calculated global_l2 to all procs in the grid
-		MPI_Bcast(&global_l2, 1, MPI_DOUBLE, root_rank, comm);
+		// Collect (sum) all local_l2 to p0 (procs not in first col have an l2 value of 0)
+		MPI_Allreduce(&local_l2, &global_l2, 1, MPI_DOUBLE, MPI_SUM, comm);
+
+		// Check termination requirement
 		if (sqrt(global_l2) < l2_termination) {
 			return;
 		}
 	}
-
 }
 
 // wraps the distributed matrix vector multiplication
